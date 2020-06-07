@@ -14,9 +14,14 @@ class PointsController {
             });
         };
 
+        const serializedPoint = {
+            ...point,
+            image_url: `http://192.168.15.19:3333/uploads/${point.image}`
+        };
+
         const item = await knex('items').join('point_items', 'items.id', '=', 'point_items.item_id').where('point_items.point_id', id).select('items.title');
 
-        return response.json({ point, item });
+        return response.json({ point: serializedPoint, item });
     };
 
     async create(request: Request, response: Response) {
@@ -34,7 +39,7 @@ class PointsController {
         const trx = await knex.transaction();
 
         const point = {
-            image: 'https://images.unsplash.com/photo-1569180880150-df4eed93c90b?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60',
+            image: request.file.filename,
             name,
             email,
             whatsapp,
@@ -48,12 +53,15 @@ class PointsController {
 
         const point_id = insertedIds[0];
 
-        const pointItems = items.map((item_id: Number) => {
-            return {
-                item_id,
-                point_id,
-            }
-        });
+        const pointItems = items
+            .split(',')
+            .map((item: string) => Number(item.trim()))
+            .map((item_id: number) => {
+                return {
+                    item_id,
+                    point_id,
+                }
+            });
 
         await trx('point_items').insert(pointItems);
 
@@ -79,12 +87,19 @@ class PointsController {
             .where('uf', String(uf))
             .distinct()
             .select('point.*');
-        
-        if(!points) {
-            return response.json({message: 'Deu ruim'});
+
+        const serializedPoints = points.map(point => {
+            return {
+                ...point,
+                image_url: `http://192.168.15.19:3333/uploads/${point.image}`
+            };
+        });
+
+        if (!points) {
+            return response.json({ message: 'Deu ruim' });
         }
 
-        return response.json(points);
+        return response.json(serializedPoints);
     }
 };
 
